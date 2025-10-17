@@ -1,45 +1,78 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 
-#define BUFFER_SIZE 32768
+#define BUFFER_SIZE 32768 //32 KB buffer
 
-void compute_sha1(const char* input_path)
+void compute_sha1_evp(const char * input_path)
 {
     unsigned char buffer[BUFFER_SIZE];
-    unsigned char hash[SHA_DIGEST_LENGTH];
-    SHA_CTX sha_ctx;
-    FILE* input = fopen(input_path, "rb");
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_length = 0;
+
+    FILE *input = fopen(input_path, "rb");
     if(!input)
     {
-        perror("Error opening input file");
+        perror("Error in opening input file");
         exit(EXIT_FAILURE);
     }
 
-    SHA1_Init(&sha_ctx);
-
-    size_t bytes_read;
-    while((bytes_read = fread(buffer, 1, BUFFER_SIZE, input)) !=0)
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if(!ctx)
     {
-        SHA1_Update(&sha_ctx, buffer, bytes_read);
+        perror("EVP_MD_CTX_new failed");
+        fclose(input);
+        exit(EXIT_SUCCESS);
     }
 
-    SHA1_Final(hash, &sha_ctx);
+    //Initialize SHA-1 digest
+    if(EVP_DigestInit_ex(ctx, EVP_sha1(), NULL) !=1 )
+    {
+        perror("EVP_DigestInit_ex failed");
+        fclose(input);
+        exit(EXIT_FAILURE);
+    }
+
+    size_t byte_read;
+    while((byte_read = fread(buffer, 1, BUFFER_SIZE, input)) !=0)
+    {
+        if(EVP_DigestUpdate(ctx, buffer, byte_read) != 1)
+        {
+            perror("EVP_DigestUpdate failed");
+            EVP_MD_CTX_free(ctx);
+            fclose(input);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if(EVP_DigestFinal_ex(ctx, hash, &hash_length) !=1 )
+    {
+        perror("EVP_DigestFinal_ex failed");
+        EVP_MD_CTX_free(ctx);
+        fclose(input);
+        exit(EXIT_FAILURE);
+    }
+
+    EVP_MD_CTX_free(ctx);
     fclose(input);
 
-    char hash_string[SHA_DIGEST_LENGTH*2 + 1];
-    for(int i = 0; i<SHA_DIGEST_LENGTH; ++i)
+    //Convert to hex
+    char hash_string[hash_length*2 +1];
+    for(unsigned int i =0; i<hash_length; ++i)
+    {
         sprintf(&hash_string[i*2], "%02x", hash[i]);
-    
-    printf("SHA1(%s) = %s\n", input_path, hash_string);
+    }
 
+    printf("SHA-1(%s) = %s/n", input_path, hash_string);
+
+    //Write to file
     char output_path[1024];
     snprintf(output_path, sizeof(output_path), "%s.sha1", input_path);
     FILE *output = fopen(output_path, "w");
     if(!output)
     {
-        perror("Error in creating the ouput file");
+        perror("Error creating output file");
         exit(EXIT_FAILURE);
     }
 
@@ -57,6 +90,6 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    compute_sha1(argv[1]);
+    compute_sha1_evp(argv[1]);
     return EXIT_SUCCESS;
 }

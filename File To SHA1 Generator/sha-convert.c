@@ -64,7 +64,7 @@ void compute_sha1_evp(const char * input_path)
         sprintf(&hash_string[i*2], "%02x", hash[i]);
     }
 
-    printf("SHA-1(%s) = %s/n", input_path, hash_string);
+    printf("SHA-1(%s) = %s\n", input_path, hash_string);
 
     //Write to file
     char output_path[1024];

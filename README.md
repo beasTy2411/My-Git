@@ -3,4 +3,4 @@ I will be creating and adding small scripts which contribute to the working of G
 
 Already added scripts:
 1. Converting file to SHA1 value.
-2. Multi Hash Generator with zlib compression with git-object like file creation and git-like folder structure
+2. Implemented functionalities like git hash-object and git cat-file commands
